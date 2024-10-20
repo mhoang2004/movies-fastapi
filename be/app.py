@@ -56,6 +56,19 @@ async def get_movie(id: str):
     if movie is None:
         raise HTTPException(status_code=404, detail="Movie not found")
 
+    next_movie = await movies_collection.find_one(
+        {'_id': {'$gt': movie_id}},
+        sort=[('_id', 1)]
+    )
+
+    if not next_movie:
+        next_movie = await movies_collection.find_one(
+            {},
+            sort=[('_id', 1)]
+        )
+
+    movie["next"] = str(next_movie["_id"])
+
     return movie
 
 

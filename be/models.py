@@ -52,6 +52,8 @@ class Movie(BaseModel):
     metacritic: Optional[int] = None
     type: Optional[str] = None
 
+    next: Optional[str] = None
+
     class Config:
         # Allow population of the Pydantic model using MongoDB's _id field
         populate_by_name = True
