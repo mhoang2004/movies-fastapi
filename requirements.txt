@@ -1,0 +1,5 @@
+fastapi
+mortor
+pydantic
+uvicorn
+
