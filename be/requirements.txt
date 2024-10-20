@@ -1,5 +1,5 @@
 fastapi
 motor
 pydantic
+dotenv
 uvicorn
-gunicorn
