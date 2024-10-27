@@ -1,0 +1,11 @@
+/* Ensure the dropdown is wide enough to accommodate multiple columns */
+.dropdown-menu.multi-column {
+    columns: 3; /* Define number of columns */
+    column-gap: 20px; /* Space between the columns */
+    left: 50%; /* Move the dropdown 50% from the left */
+    transform: translateX(-50%); /* Center the dropdown by moving it back half of its width */
+}
+  
+.dropdown-menu.multi-column li {
+break-inside: avoid; /* Ensure items don't break across columns */
+}

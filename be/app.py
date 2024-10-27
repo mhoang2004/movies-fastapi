@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -12,12 +12,6 @@ from models import Comment
 
 app = FastAPI()
 
-# Cloud MongoDB connection URI
-load_dotenv()
-MONGO_DETAILS = os.getenv("DB_STRING")
-client = AsyncIOMotorClient(MONGO_DETAILS)
-
-#
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -26,6 +20,11 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Cloud MongoDB connection URI
+load_dotenv()
+MONGO_DETAILS = os.getenv("DB_STRING")
+client = AsyncIOMotorClient(MONGO_DETAILS)
+
 # Access the database and collection
 database = client.sample_mflix  # Replace with your database name
 movies_collection = database.movies  # Replace with your collection name
@@ -33,17 +32,40 @@ comments_collection = database.comments
 
 
 @app.get("/movies", response_model=List[Movie])
-async def get_all_movies(limit: int = 30, offset: int = 0):
-    movies_cursor = movies_collection.find().skip(
+async def get_all_movies(sort_by: str | None = Query(None, enum=["year", "name", "imdb"]),
+                         order: int = Query(0, enum=[-1, 1, 0]),
+                         limit: int = 30,
+                         offset: int = 0,
+                         genre: str | None = None,
+                         directors: str | None = None,
+                         cast: str | None = None
+                         ):
+
+    query = {}
+
+    if genre:
+        query["genres"] = genre
+    if directors:
+        query["directors"] = directors
+    if cast:
+        query["cast"] = cast
+
+    movies_cursor = movies_collection.find(query)
+
+    if sort_by and order:
+        movies_cursor.sort(sort_by, order)
+
+    movies_cursor.skip(
         offset).limit(limit)
-    movies = await movies_cursor.to_list()  # Limit to 100 movies
+
+    movies = await movies_cursor.to_list()
 
     if not movies:
         raise HTTPException(status_code=404, detail="No movies found")
     return movies
 
 
-@app.get("/movies/{id}", response_model=Movie)
+@ app.get("/movies/{id}", response_model=Movie)
 async def get_movie(id: str):
     # Convert string to ObjectId
     try:
@@ -56,34 +78,50 @@ async def get_movie(id: str):
     if movie is None:
         raise HTTPException(status_code=404, detail="Movie not found")
 
+    # next movie
     next_movie = await movies_collection.find_one(
         {'_id': {'$gt': movie_id}},
         sort=[('_id', 1)]
     )
-
     if not next_movie:
         next_movie = await movies_collection.find_one(
             {},
             sort=[('_id', 1)]
         )
-
     movie["next"] = str(next_movie["_id"])
+
+    # comments
+    movie["comments"] = await comments_collection.find(
+        {"movie_id": movie_id}
+    ).to_list()
 
     return movie
 
 
-@app.get("/movies/{id}/comments", response_model=List[Comment])
-async def get_comment(id: str, limit: int = 10, offset: int = 0):
-    try:
-        movie_id = ObjectId(id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+@app.get("/genres", response_model=List[str])
+async def get_distinct_genres():
+    distinct_genres = await movies_collection.distinct("genres")
+    return distinct_genres
 
-    comments = await comments_collection.find(
-        {"movie_id": movie_id}
-    ).skip(offset).limit(limit).to_list()
 
-    if not comments:
-        comments = []
+@app.get("/search/{q}", response_model=List[Movie])
+async def search_movies(q: str, limit: int = 30, offset: int = 0):
+    search_query = {
+        "$or": [
+            {"title": {"$regex": q, "$options": "i"}},
+            {"cast": {"$regex": q, "$options": "i"}},
+            {"directors": {"$regex": q, "$options": "i"}}
+        ]
+    }
 
-    return comments
+    movies_cursor = movies_collection.find(
+        search_query).skip(
+        offset).limit(limit)
+
+    movies = await movies_cursor.to_list()
+
+    if not movies:
+        raise HTTPException(
+            status_code=404, detail="No movies found matching the search criteria")
+
+    return movies

@@ -5,8 +5,8 @@ from datetime import datetime
 
 
 class Imdb(BaseModel):
-    rating: Optional[float] = None
-    votes: Optional[int] = None
+    rating: Optional[float] | str = None
+    votes: Optional[int] | str = None
     id: Optional[int] = None
 
 
@@ -26,6 +26,23 @@ class Award(BaseModel):
     text: Optional[str] = None
 
 
+class Comment(BaseModel):
+    id: Optional[ObjectId] = Field(..., alias="_id")
+    name: Optional[str] = None
+    email: Optional[str] = None
+    movie_id: Optional[ObjectId] = None
+    text: Optional[str] = None
+    date: Optional[datetime] = None
+
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+
+        json_encoders = {
+            ObjectId: lambda v: str(v),
+        }
+
+
 class Movie(BaseModel):
     id: Optional[ObjectId] = Field(..., alias="_id")
     plot: Optional[str] = None
@@ -43,15 +60,14 @@ class Movie(BaseModel):
     writers: Optional[List[str]] = None
     awards: Optional[Award] = None
     lastupdated: Optional[datetime] = None
-    year: Optional[int] = None
+    year: Optional[int] | str = None
     imdb: Optional[Imdb] = None
     contries: Optional[str] = None
     tomatoes: Optional[Tomatoes] = None
-
+    comments: Optional[List[Comment]] = []
     ratings: Optional[List[str]] = None
     metacritic: Optional[int] = None
     type: Optional[str] = None
-
     next: Optional[str] = None
 
     class Config:
@@ -63,21 +79,4 @@ class Movie(BaseModel):
         json_encoders = {
             ObjectId: lambda v: str(v),
             datetime: lambda v: v.strftime('%B %d, %Y')
-        }
-
-
-class Comment(BaseModel):
-    id: Optional[ObjectId] = Field(..., alias="_id")
-    name: Optional[str] = None
-    email: Optional[str] = None
-    movie_id: Optional[ObjectId] = None
-    text: Optional[str] = None
-    date: Optional[datetime] = None
-
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-
-        json_encoders = {
-            ObjectId: lambda v: str(v),
         }
